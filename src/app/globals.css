@@ -1,0 +1,259 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg-primary: hsl(10 10 11);
+  --color-bg-secondary: hsl(26 26 27);
+  --color-bg-tertiary: hsl(42 42 43);
+  --color-bg-accent: hsl(58 58 59);
+  
+  --color-text-primary: hsl(255 255 255);
+  --color-text-secondary: hsl(179 179 179);
+  --color-text-tertiary: hsl(128 128 128);
+  
+  --color-accent-primary: hsl(0 102 255);
+  --color-accent-success: hsl(0 209 106);
+  --color-accent-warning: hsl(255 149 0);
+  --color-accent-error: hsl(255 59 48);
+  --color-accent-purple: hsl(142 68 173);
+  
+  --color-border-subtle: hsl(255 255 255 / 0.1);
+  --color-border-strong: hsl(255 255 255 / 0.2);
+  
+  --border-radius-sm: 8px;
+  --border-radius-md: 12px;
+  --border-radius-lg: 20px;
+}
+
+@layer base {
+  :root {
+    /* Background Layers */
+    --bg-primary: 10 10 11;     /* #0a0a0b - Main canvas */
+    --bg-secondary: 26 26 27;   /* #1a1a1b - Panels, sidebar */
+    --bg-tertiary: 42 42 43;    /* #2a2a2b - Cards, elevated surfaces */
+    --bg-accent: 58 58 59;      /* #3a3a3b - Hover states */
+    
+    /* Text Colors */
+    --text-primary: 255 255 255;    /* #ffffff - Primary text */
+    --text-secondary: 179 179 179;  /* #b3b3b3 - Secondary text */
+    --text-tertiary: 128 128 128;   /* #808080 - Disabled, placeholders */
+    
+    /* Accent Colors */
+    --accent-primary: 213 100 50;     /* #0066ff - AI features, primary actions */
+    --accent-success: 145 85 45;      /* #00d16a - Success states, tests passing */
+    --accent-warning: 37 100 50;      /* #ff9500 - Warnings, suggestions */
+    --accent-error: 4 100 60;         /* #ff3b30 - Errors, critical states */
+    --accent-purple: 280 39 47;       /* #8e44ad - AI reasoning, advanced features */
+    --accent-glow: 213 100 50;        /* For glowing effects */
+    
+    /* Borders & Effects */
+    --border-subtle: 255 255 255 / 0.1;
+    --border-strong: 255 255 255 / 0.2;
+    
+    /* Shadows */
+    --shadow-soft: 0 4px 20px hsl(var(--bg-primary) / 0.3);
+    --shadow-strong: 0 8px 40px hsl(var(--bg-primary) / 0.5);
+    --shadow-glow: 0 0 40px hsl(var(--accent-primary) / 0.4);
+    --shadow-elegant: 0 10px 30px -10px hsl(var(--accent-primary) / 0.3);
+    
+    /* Animations */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    
+    /* Grid System */
+    --grid-unit: 8px;
+    --border-radius: 12px;
+    --border-radius-large: 20px;
+  }
+
+  [data-theme="light"] {
+    --bg-primary: 255 255 255;
+    --bg-secondary: 248 249 250;
+    --bg-tertiary: 233 236 239;
+    --bg-accent: 222 226 230;
+    
+    --text-primary: 33 37 41;
+    --text-secondary: 73 80 87;
+    --text-tertiary: 108 117 125;
+    
+    --border-subtle: 0 0 0 / 0.1;
+    --border-strong: 0 0 0 / 0.2;
+    --shadow-soft: 0 4px 20px hsl(0 0 0 / 0.1);
+    --shadow-strong: 0 8px 40px hsl(0 0 0 / 0.15);
+  }
+
+  * {
+    border-color: hsl(var(--border-subtle));
+  }
+
+  body {
+    color: hsl(var(--text-primary));
+    background: hsl(var(--bg-primary));
+    font-feature-settings: "rlig" 1, "calt" 1;
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Custom scrollbars */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: hsl(var(--bg-tertiary));
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--border-strong));
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--accent-primary) / 0.8);
+  }
+}
+
+@layer components {
+  /* AI thinking animation */
+  .ai-thinking {
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 0.8; }
+    50% { opacity: 1; }
+  }
+
+  /* Suggestion slide-in animation */
+  .suggestion-enter {
+    transform: translateY(-10px);
+    opacity: 0;
+    animation: slideInFade 0.3s ease-out forwards;
+  }
+
+  @keyframes slideInFade {
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  /* Glow effect for AI elements */
+  .ai-glow {
+    box-shadow: 0 0 40px hsl(var(--accent-primary) / 0.4);
+  }
+
+  /* Loading skeleton */
+  .loading-skeleton {
+    background: linear-gradient(
+      90deg,
+      hsl(var(--bg-tertiary)) 0%,
+      hsl(var(--bg-accent)) 50%,
+      hsl(var(--bg-tertiary)) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s ease-in-out infinite;
+  }
+
+  @keyframes shimmer {
+    0% {
+      background-position: -200% 0;
+    }
+    100% {
+      background-position: 200% 0;
+    }
+  }
+
+  /* Layout grid */
+  .layout-container {
+    display: grid;
+    grid-template-areas: 
+      "sidebar header header"
+      "sidebar editor inspector"  
+      "sidebar terminal inspector";
+    grid-template-columns: 280px 1fr 320px;
+    grid-template-rows: 48px 1fr 240px;
+    height: 100vh;
+    gap: 1px;
+    background: hsl(var(--border-subtle));
+  }
+
+  @media (max-width: 1200px) {
+    .layout-container {
+      grid-template-areas: 
+        "header header"
+        "editor inspector"  
+        "terminal terminal";
+      grid-template-columns: 1fr 280px;
+      grid-template-rows: 48px 1fr 200px;
+    }
+    
+    .sidebar {
+      display: none;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .layout-container {
+      grid-template-areas: 
+        "header"
+        "editor"  
+        "terminal";
+      grid-template-columns: 1fr;
+      grid-template-rows: 48px 1fr 180px;
+    }
+    
+    .inspector {
+      display: none;
+    }
+  }
+
+  .header {
+    grid-area: header;
+    background: hsl(var(--bg-secondary));
+    border-radius: 12px 12px 0 0;
+  }
+
+  .sidebar {
+    grid-area: sidebar;
+    background: hsl(var(--bg-secondary));
+    border-radius: 12px 0 0 12px;
+  }
+
+  .editor {
+    grid-area: editor;
+    background: hsl(var(--bg-primary));
+  }
+
+  .inspector {
+    grid-area: inspector;
+    background: hsl(var(--bg-secondary));
+    border-radius: 0 12px 12px 0;
+  }
+
+  .terminal {
+    grid-area: terminal;
+    background: hsl(var(--bg-tertiary));
+    border-radius: 0 0 12px 0;
+  }
+
+  @media (max-width: 1200px) {
+    .terminal {
+      border-radius: 0 0 12px 12px;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .header {
+      border-radius: 12px 12px 0 0;
+    }
+    
+    .editor {
+      border-radius: 0;
+    }
+    
+    .terminal {
+      border-radius: 0 0 12px 12px;
+    }
+  }
+}
