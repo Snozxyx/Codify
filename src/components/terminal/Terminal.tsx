@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Terminal as TerminalIcon, Zap, AlertTriangle } from "lucide-react";
+import { AIService } from "@/lib/tauri-api";
 
 interface TerminalLine {
   type: "command" | "output" | "error" | "suggestion";
@@ -39,64 +40,39 @@ export function Terminal() {
     setCurrentCommand("");
     setIsThinking(true);
 
-    // Simulate AI processing
-    setTimeout(() => {
-      const responses = getAIResponse(command);
-      setHistory(prev => [...prev, ...responses]);
+    try {
+      const response = await AIService.executeTerminalCommand({
+        command: command.split(' ')[0],
+        args: command.split(' ').slice(1),
+        working_dir: '/current/project'
+      });
+
+      const outputs: TerminalLine[] = [
+        { type: "output", content: response.output, timestamp: new Date() }
+      ];
+
+      if (response.error) {
+        outputs.push({ type: "error", content: response.error, timestamp: new Date() });
+      }
+
+      if (response.suggestions.length > 0) {
+        response.suggestions.forEach(suggestion => {
+          outputs.push({ type: "suggestion", content: `💡 AI suggests: ${suggestion}`, timestamp: new Date() });
+        });
+      }
+
+      setHistory(prev => [...prev, ...outputs]);
+    } catch (error) {
+      setHistory(prev => [...prev, {
+        type: "error",
+        content: `Error executing command: ${error}`,
+        timestamp: new Date()
+      }]);
+    } finally {
       setIsThinking(false);
-    }, 1000 + Math.random() * 1000);
+    }
   };
 
-  const getAIResponse = (command: string): TerminalLine[] => {
-    const cmd = command.toLowerCase().trim();
-    
-    if (cmd.includes("install") || cmd.includes("npm i")) {
-      return [
-        { type: "output", content: "📦 Installing dependencies...", timestamp: new Date() },
-        { type: "output", content: "✓ Dependencies installed successfully", timestamp: new Date() },
-        { type: "suggestion", content: "💡 AI suggests: Run 'npm audit' to check for security vulnerabilities", timestamp: new Date() },
-      ];
-    }
-    
-    if (cmd.includes("build")) {
-      return [
-        { type: "output", content: "🔨 Building application...", timestamp: new Date() },
-        { type: "output", content: "✓ Build completed in 12.3s", timestamp: new Date() },
-        { type: "suggestion", content: "💡 AI suggests: Your bundle size increased by 15%. Consider code splitting.", timestamp: new Date() },
-      ];
-    }
-    
-    if (cmd.includes("test")) {
-      return [
-        { type: "output", content: "🧪 Running tests...", timestamp: new Date() },
-        { type: "output", content: "✓ 24 tests passed", timestamp: new Date() },
-        { type: "error", content: "⚠ 2 tests have low coverage", timestamp: new Date() },
-        { type: "suggestion", content: "💡 AI suggests: Add tests for components/Button.tsx", timestamp: new Date() },
-      ];
-    }
-    
-    if (cmd.includes("git") && cmd.includes("commit")) {
-      return [
-        { type: "output", content: "📝 Committing changes...", timestamp: new Date() },
-        { type: "output", content: "✓ Committed: feat: add AI-powered terminal interface", timestamp: new Date() },
-        { type: "suggestion", content: "💡 AI suggests: Consider adding a pre-commit hook for linting", timestamp: new Date() },
-      ];
-    }
-    
-    // AI natural language processing
-    if (!cmd.startsWith("npm") && !cmd.startsWith("git") && !cmd.startsWith("yarn")) {
-      return [
-        { type: "output", content: "🤖 AI is analyzing your request...", timestamp: new Date() },
-        { type: "output", content: "I understand you want help with: " + command, timestamp: new Date() },
-        { type: "suggestion", content: "💡 Try: 'npm run dev' to start the development server", timestamp: new Date() },
-      ];
-    }
-
-    return [
-      { type: "output", content: `Command executed: ${command}`, timestamp: new Date() },
-      { type: "suggestion", content: "💡 AI suggests: Use 'help' to see available commands", timestamp: new Date() },
-    ];
-  };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") {

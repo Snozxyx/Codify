@@ -1,10 +1,29 @@
 "use client";
 
 import { Brain, Search, Terminal, Rocket, ChevronRight, Menu } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { AIService } from "@/lib/tauri-api";
 
 export function HeaderBar() {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [aiStatus, setAIStatus] = useState<Record<string, unknown> | null>(null);
+
+  useEffect(() => {
+    // Load AI status
+    const loadAIStatus = async () => {
+      try {
+        const status = await AIService.getAIStatus();
+        setAIStatus(status);
+      } catch (error) {
+        console.error('Failed to load AI status:', error);
+      }
+    };
+
+    loadAIStatus();
+    // Update status every 30 seconds
+    const interval = setInterval(loadAIStatus, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <header className="header flex items-center justify-between px-4 border-b border-solid">
@@ -19,9 +38,11 @@ export function HeaderBar() {
       {/* AI Status Indicator */}
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-[hsl(var(--accent-success))] animate-pulse"></div>
+          <div className={`w-2 h-2 rounded-full ${
+            aiStatus?.model_loaded ? 'bg-[hsl(var(--accent-success))] animate-pulse' : 'bg-[hsl(var(--accent-error))]'
+          }`}></div>
           <span className="text-sm text-[hsl(var(--text-secondary))] hidden sm:block">
-            GPT-4 Ready • 23% GPU
+            {String(aiStatus?.model_name || 'GPT-4')} Ready • {String(aiStatus?.gpu_usage || 23)}% GPU
           </span>
           <span className="text-xs text-[hsl(var(--text-secondary))] sm:hidden">
             AI Ready

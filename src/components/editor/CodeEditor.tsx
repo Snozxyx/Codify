@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import dynamic from "next/dynamic";
 import { Lightbulb, RefreshCw, TestTube, Check, X, MoreHorizontal } from "lucide-react";
+import { AIService, type CompletionResult, type AIContext } from "@/lib/tauri-api";
 
 // Dynamically import Monaco Editor to avoid SSR issues
 const Editor = dynamic(() => import("@monaco-editor/react"), {
@@ -17,36 +18,10 @@ const Editor = dynamic(() => import("@monaco-editor/react"), {
   )
 });
 
-interface TabXSuggestion {
-  id: string;
-  level: "line" | "block" | "component" | "feature";
-  confidence: number;
-  code: string;
-  language: string;
-  diff?: string;
-  alternatives?: string[];
-}
-
-const mockSuggestion: TabXSuggestion = {
-  id: "1",
-  level: "component",
-  confidence: 0.92,
-  code: `const Button = ({ children, variant = "primary", ...props }) => {
-  return (
-    <button 
-      className={\`btn btn-\${variant}\`}
-      {...props}
-    >
-      {children}
-    </button>
-  );
-};`,
-  language: "typescript",
-  alternatives: ["Styled components variant", "CSS modules variant"]
-};
-
 export function CodeEditor() {
-  const [showSuggestion, setShowSuggestion] = useState(true);
+  const [showSuggestion, setShowSuggestion] = useState(false);
+  const [currentSuggestion, setCurrentSuggestion] = useState<CompletionResult | null>(null);
+  const [isLoadingSuggestion, setIsLoadingSuggestion] = useState(false);
   const [code, setCode] = useState(`import React from 'react';
 
 // ProjectCode - AI-Powered IDE
@@ -99,14 +74,77 @@ export default function App() {
     monacoEditor.editor.setTheme('projectcode-dark');
   };
 
+  const requestAICompletion = async () => {
+    setIsLoadingSuggestion(true);
+    try {
+      const context: AIContext = {
+        project_path: "/current/project",
+        current_file: "app.tsx",
+        selected_text: "",
+        cursor_position: { line: 10, column: 20 }
+      };
+      
+      const result = await AIService.completeCode(context, 'Component');
+      setCurrentSuggestion(result);
+      setShowSuggestion(true);
+    } catch (error) {
+      console.error('AI completion failed:', error);
+    } finally {
+      setIsLoadingSuggestion(false);
+    }
+  };
+
   const acceptSuggestion = () => {
+    if (currentSuggestion) {
+      // In real implementation, this would insert the code at cursor position
+      setCode(prevCode => prevCode + '\n\n// AI Generated:\n' + currentSuggestion.code);
+    }
     setShowSuggestion(false);
-    // In real implementation, this would insert the code
+    setCurrentSuggestion(null);
   };
 
   const rejectSuggestion = () => {
     setShowSuggestion(false);
+    setCurrentSuggestion(null);
   };
+
+  const handleAIExplain = async () => {
+    try {
+      const explanation = await AIService.explainCode(code);
+      alert(explanation); // In real implementation, show in a proper modal
+    } catch (error) {
+      console.error('AI explain failed:', error);
+    }
+  };
+
+  const handleAIRefactor = async () => {
+    try {
+      const suggestions = await AIService.suggestRefactor(code);
+      alert('Refactoring suggestions:\n' + suggestions.join('\n')); // In real implementation, show in a proper modal
+    } catch (error) {
+      console.error('AI refactor failed:', error);
+    }
+  };
+
+  const handleGenerateTests = async () => {
+    try {
+      const tests = await AIService.generateTests(code);
+      alert('Generated tests:\n' + tests); // In real implementation, show in a proper modal
+    } catch (error) {
+      console.error('AI test generation failed:', error);
+    }
+  };
+
+  // Auto-request completion on certain triggers
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (code.includes('const ') && !showSuggestion && !isLoadingSuggestion) {
+        requestAICompletion();
+      }
+    }, 2000);
+
+    return () => clearTimeout(timer);
+  }, [code, showSuggestion, isLoadingSuggestion]);
 
   return (
     <main className="editor relative overflow-hidden">
@@ -137,16 +175,16 @@ export default function App() {
       />
       
       {/* TabX Suggestion Interface */}
-      {showSuggestion && (
+      {showSuggestion && currentSuggestion && (
         <div className="absolute top-4 right-4 w-80 bg-[hsl(var(--bg-secondary))] border border-[hsl(var(--border-strong))] rounded-lg shadow-lg suggestion-enter">
           <div className="p-3">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <span className="text-xs font-semibold text-[hsl(var(--accent-primary))] uppercase tracking-wide">
-                  {mockSuggestion.level}
+                  {currentSuggestion.level}
                 </span>
                 <span className="text-xs text-[hsl(var(--text-secondary))]">
-                  {Math.round(mockSuggestion.confidence * 100)}% confident
+                  {Math.round(currentSuggestion.confidence * 100)}% confident
                 </span>
               </div>
               <button onClick={rejectSuggestion} className="p-1 hover:bg-[hsl(var(--bg-accent))] rounded">
@@ -154,9 +192,9 @@ export default function App() {
               </button>
             </div>
             
-            <div className="bg-[hsl(var(--bg-primary))] border border-[hsl(var(--border-subtle))] rounded p-3 mb-3 text-xs font-mono overflow-x-auto">
+            <div className="bg-[hsl(var(--bg-primary))] border border-[hsl(var(--border-subtle))] rounded p-3 mb-3 text-xs font-mono overflow-x-auto max-h-40 overflow-y-auto">
               <pre className="text-[hsl(var(--text-primary))] whitespace-pre-wrap">
-                {mockSuggestion.code}
+                {currentSuggestion.code}
               </pre>
             </div>
             
@@ -168,7 +206,7 @@ export default function App() {
                 <Check className="w-3 h-3" />
                 Accept
               </button>
-              {mockSuggestion.alternatives && (
+              {currentSuggestion.alternatives && currentSuggestion.alternatives.length > 0 && (
                 <button className="px-3 py-1.5 bg-[hsl(var(--bg-tertiary))] text-[hsl(var(--text-secondary))] rounded text-xs font-medium hover:bg-[hsl(var(--bg-accent))] transition-colors">
                   <MoreHorizontal className="w-3 h-3" />
                 </button>
@@ -177,22 +215,35 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* Loading Indicator for AI */}
+      {isLoadingSuggestion && (
+        <div className="absolute top-4 right-4 bg-[hsl(var(--bg-secondary))] border border-[hsl(var(--border-strong))] rounded-lg shadow-lg p-3">
+          <div className="flex items-center gap-2 text-[hsl(var(--text-secondary))]">
+            <div className="w-3 h-3 border-2 border-[hsl(var(--accent-primary))] border-t-transparent rounded-full animate-spin"></div>
+            <span className="text-xs">AI thinking...</span>
+          </div>
+        </div>
+      )}
       
       {/* Floating AI Actions */}
       <div className="absolute bottom-4 right-4 flex flex-col gap-2">
         <button 
+          onClick={handleAIExplain}
           className="p-3 bg-[hsl(var(--bg-secondary))] border border-[hsl(var(--border-strong))] rounded-lg shadow-lg hover:bg-[hsl(var(--bg-tertiary))] transition-colors group"
           title="Explain this code"
         >
           <Lightbulb className="w-4 h-4 text-[hsl(var(--accent-warning))] group-hover:text-[hsl(var(--accent-warning)_/_0.8)]" />
         </button>
         <button 
+          onClick={handleAIRefactor}
           className="p-3 bg-[hsl(var(--bg-secondary))] border border-[hsl(var(--border-strong))] rounded-lg shadow-lg hover:bg-[hsl(var(--bg-tertiary))] transition-colors group"
           title="Suggest refactoring"
         >
           <RefreshCw className="w-4 h-4 text-[hsl(var(--accent-primary))] group-hover:text-[hsl(var(--accent-primary)_/_0.8)]" />
         </button>
         <button 
+          onClick={handleGenerateTests}
           className="p-3 bg-[hsl(var(--bg-secondary))] border border-[hsl(var(--border-strong))] rounded-lg shadow-lg hover:bg-[hsl(var(--bg-tertiary))] transition-colors group"
           title="Generate tests"
         >

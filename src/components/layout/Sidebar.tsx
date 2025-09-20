@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { 
   Folder, 
   FolderOpen, 
@@ -12,6 +12,7 @@ import {
   Code,
   Braces
 } from "lucide-react";
+import { AIService, type ProjectFile } from "@/lib/tauri-api";
 
 interface FileItem {
   name: string;
@@ -36,12 +37,6 @@ const projectFiles: FileItem[] = [
   { name: "README.md", type: "file" }
 ];
 
-const suggestedFiles = [
-  { name: "components/Button.tsx", aiScore: 0.95, icon: Code },
-  { name: "utils/helpers.ts", aiScore: 0.8, icon: Braces },
-  { name: "styles/globals.css", aiScore: 0.6, icon: FileText }
-];
-
 const chatHistory = [
   { role: "user", content: "How do I implement AI autocomplete?" },
   { role: "assistant", content: "I can help you implement TabX autocomplete. Let me show you the pattern..." }
@@ -51,6 +46,8 @@ export function Sidebar() {
   const [chatInput, setChatInput] = useState("");
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set(["src"]));
   const [messages, setMessages] = useState(chatHistory);
+  const [suggestedFiles, setSuggestedFiles] = useState<ProjectFile[]>([]);
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
 
   const toggleFolder = (folderName: string) => {
     const newExpanded = new Set(expandedFolders);
@@ -62,23 +59,89 @@ export function Sidebar() {
     setExpandedFolders(newExpanded);
   };
 
-  const sendMessage = () => {
+  const sendMessage = async () => {
     if (!chatInput.trim()) return;
     
     const newMessages = [
       ...messages,
-      { role: "user" as const, content: chatInput },
-      { role: "assistant" as const, content: "I understand your request. Let me help you with that..." }
+      { role: "user" as const, content: chatInput }
     ];
     
     setMessages(newMessages);
     setChatInput("");
+
+    // Simulate AI response - in real implementation, this could use a chat completion API
+    setTimeout(() => {
+      setMessages(prev => [...prev, { 
+        role: "assistant" as const, 
+        content: "I understand your request. Let me help you with that..." 
+      }]);
+    }, 1000);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       sendMessage();
+    }
+  };
+
+  // Load AI-suggested files
+  useEffect(() => {
+    const loadSuggestions = async () => {
+      setIsLoadingSuggestions(true);
+      try {
+        const suggestions = await AIService.getAISuggestedFiles('app.tsx', '/current/project');
+        setSuggestedFiles(suggestions);
+      } catch (error) {
+        console.error('Failed to load AI suggestions:', error);
+        // Fallback to mock data
+        setSuggestedFiles([
+          {
+            path: 'src/components/Button.tsx',
+            name: 'Button.tsx',
+            file_type: 'typescript',
+            size: 2048,
+            modified: '2024-01-15T10:30:00Z',
+            ai_relevance: 0.95
+          },
+          {
+            path: 'src/utils/helpers.ts',
+            name: 'helpers.ts',
+            file_type: 'typescript',
+            size: 1024,
+            modified: '2024-01-14T15:20:00Z',
+            ai_relevance: 0.80
+          },
+          {
+            path: 'src/styles/globals.css',
+            name: 'globals.css',
+            file_type: 'css',
+            size: 4096,
+            modified: '2024-01-13T09:15:00Z',
+            ai_relevance: 0.60
+          }
+        ]);
+      } finally {
+        setIsLoadingSuggestions(false);
+      }
+    };
+
+    loadSuggestions();
+  }, []);
+
+  const getFileIcon = (fileType: string) => {
+    switch (fileType) {
+      case 'typescript':
+      case 'javascript':
+        return Code;
+      case 'json':
+        return Braces;
+      case 'css':
+      case 'scss':
+        return FileText;
+      default:
+        return File;
     }
   };
 
@@ -122,14 +185,25 @@ export function Sidebar() {
         
         {/* AI-suggested relevant files */}
         <div className="mb-4">
-          <h4 className="text-xs font-medium text-[hsl(var(--text-secondary))] mb-2">Related to current task</h4>
-          {suggestedFiles.map((file) => (
-            <div key={file.name} className="flex items-center gap-2 py-1 px-2 hover:bg-[hsl(var(--bg-accent))] rounded cursor-pointer">
-              <file.icon className="w-3.5 h-3.5 text-[hsl(var(--accent-primary))]" />
-              <span className="text-xs text-[hsl(var(--text-primary))] flex-1">{file.name}</span>
-              <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: `hsl(var(--accent-success) / ${file.aiScore})` }}></div>
-            </div>
-          ))}
+          <h4 className="text-xs font-medium text-[hsl(var(--text-secondary))] mb-2">
+            Related to current task
+            {isLoadingSuggestions && (
+              <span className="ml-2 inline-block w-3 h-3 border border-[hsl(var(--accent-primary))] border-t-transparent rounded-full animate-spin"></span>
+            )}
+          </h4>
+          {suggestedFiles.map((file) => {
+            const IconComponent = getFileIcon(file.file_type);
+            return (
+              <div key={file.path} className="flex items-center gap-2 py-1 px-2 hover:bg-[hsl(var(--bg-accent))] rounded cursor-pointer">
+                <IconComponent className="w-3.5 h-3.5 text-[hsl(var(--accent-primary))]" />
+                <span className="text-xs text-[hsl(var(--text-primary))] flex-1">{file.name}</span>
+                <div 
+                  className="w-1.5 h-1.5 rounded-full" 
+                  style={{ backgroundColor: `hsl(var(--accent-success) / ${file.ai_relevance || 0.5})` }}
+                ></div>
+              </div>
+            );
+          })}
         </div>
         
         <div className="space-y-1">
